@@ -140,6 +140,7 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  p->syscall_trace = 0;
 
   return p;
 }
@@ -304,6 +305,8 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  np->syscall_trace = p ->syscall_trace;
 
   release(&np->lock);
 
@@ -653,4 +656,16 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+count_process(void){
+  uint res =0;
+  struct proc* p;
+  for(p = proc;p< &proc[NPROC];p++){
+    if(p->state != UNUSED){
+      res++;
+    }
+  }
+  return res;
 }
