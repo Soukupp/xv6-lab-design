@@ -77,8 +77,20 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    if(p->alarm_interval != 0) { // 如果设定了时钟事件
+      p->alarm_ticks--;         // 消耗ticks
+      if(p->alarm_ticks <= 0) { // 如果已经到达或超过设定的 tick 数
+        if(!p->alarm_goingoff) { // 确保没有时钟正在运行,防止中断重入
+          p->alarm_ticks = p->alarm_interval;
+          *p->alarm_trapframe = *p->trapframe;
+          p->trapframe->epc = (uint64)p->alarm_handler;
+          p->alarm_goingoff = 1;
+        }
+      }
+    }
     yield();
+  }
 
   usertrapret();
 }
@@ -218,3 +230,17 @@ devintr()
   }
 }
 
+int sigalarm(int ticks, void(*handler)()){
+  struct proc *p = myproc();
+  p->alarm_ticks = ticks;
+  p->alarm_handler = handler;
+  p->alarm_interval = ticks;
+  return 0;
+}
+
+int sigreturn(){
+  struct proc *p = myproc();
+  *p->trapframe = *p->alarm_trapframe;
+  p->alarm_goingoff = 0;
+  return 0;
+}
