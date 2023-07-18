@@ -1,8 +1,8 @@
 // find.c
 #include "kernel/types.h"
 #include "kernel/stat.h"
-#include "kernel/fs.h"
 #include "user/user.h"
+#include "kernel/fs.h"
 
 void find(char* path, char* file_name){
     char buf[256];
@@ -11,14 +11,14 @@ void find(char* path, char* file_name){
     struct dirent de;
 
     fd = open(path,0);
-    printf("%d",fd);
     if(fd<0)
     {
         printf("error: find() cannot open %s\n",path);
         exit(1);
     }
-    if(fstat(fd,&st)<0){
+    if(fstat(fd,&st)<0){      //获取文件的状态
         printf("error: fstat() cannot stat %s\n",path);
+        close(fd);
         exit(1);
     }
 
@@ -34,7 +34,7 @@ void find(char* path, char* file_name){
         }
         strcpy(buf, path);
         char* p = buf+strlen(buf);
-
+        // 路径末尾加上'/'
         *p++ = '/';
         while(read(fd,&de,sizeof(de))== sizeof(de)){
             if(de.inum == 0)
@@ -45,7 +45,8 @@ void find(char* path, char* file_name){
                 printf("error: find() cannot stat %s\n",buf);
                 continue;
             }
-            if(strcmp(buf+strlen(buf)-2,"./")!=0 && strcmp(buf+strlen(buf)-3,"../")!=0){
+            // 不进入'/.'和'/..'
+            if(strcmp(buf+strlen(buf)-2,"/.")!=0 && strcmp(buf+strlen(buf)-3,"/..")!=0){
                 find(buf,file_name);
             }
         }
