@@ -432,3 +432,65 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+void 
+print_head(int level){
+  if(level == 0)
+    printf("..");
+  else if(level == 1)
+    printf(".. ..");
+  else
+    printf(".. .. ..");
+}
+
+void
+print_proc(pagetable_t pagetable, int level){
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      print_head(level);
+      printf("%d: pte %p pa %p\n",i, pte, child);
+      print_proc((pagetable_t)child,level+1);
+    } else if(pte & PTE_V){
+      uint64 pa = PTE2PA(pte);
+      print_head(level);
+      printf("%d: pte %p pa %p\n",i, pte, pa);
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable){
+  printf("page table %p\n",pagetable);
+  print_proc(pagetable,0);
+}
+
+int
+pgaccess(pagetable_t pagetable, uint64 s_va, uint64 e_va, int pagenum)
+{
+  if(pagenum>64)
+  {
+    printf("pgaccess: too many pages");
+    return-1;
+  }
+  unsigned int bitmap = 0;
+  int count = 0;
+  pte_t * pte;
+  for(uint64 va = s_va;count<pagenum;count++){
+    // tranverse pagetable to find targeted PTE
+    if((pte = walk(pagetable, va, 0))==0){     
+      printf("pgaccess: pte inexists");
+    }
+    if((*pte & PTE_A)) // if this PTE has been accessed
+    {
+      bitmap = bitmap | (1<< count);
+      *pte = *pte & ~PTE_A;
+    }
+    va+= PGSIZE;
+  }
+  copyout(pagetable, e_va,(char*)&bitmap, sizeof(bitmap));   // kernel -> user
+  return 0;
+}
+ 

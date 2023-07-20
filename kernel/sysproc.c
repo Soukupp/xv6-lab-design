@@ -80,7 +80,22 @@ sys_sleep(void)
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 s_va;
+  if(argaddr(0,&s_va)<0){
+    return -1;
+  }
+  int pagenum;
+  if((argint(1,&pagenum))<0){
+    return -1;
+  }
+  uint64 e_va;
+  if(argaddr(2,&e_va)<0){
+    return -1;
+  }
+  struct proc *p = myproc();
+  if(pgaccess(p->pagetable,s_va,e_va,pagenum)<0)
+    return -1;
+  
   return 0;
 }
 #endif
@@ -107,3 +122,4 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+

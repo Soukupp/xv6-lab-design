@@ -126,7 +126,12 @@ found:
     release(&p->lock);
     return 0;
   }
-
+   if((p->usyscall = (struct usyscall *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  } 
+  p->usyscall->pid = p->pid;
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -140,12 +145,6 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-  if((p->usyscall = (struct usyscall *)kalloc()) == 0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-  } 
-  p->usyscall->pid = p->pid;
 
   return p;
 }
