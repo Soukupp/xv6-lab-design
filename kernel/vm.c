@@ -310,23 +310,23 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
-    *pte &= ~PTE_W;
-    *pte |= PTE_F;
     flags = PTE_FLAGS(*pte);
-    // if((mem = kalloc()) == 0)
-    //   goto err;
-    // memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
-      kfree((void*)pa);
-      goto err;
+
+    // 仅对可写页面设置COW标记
+    if(flags & PTE_W) {
+      // 禁用写并设置COW Fork标记
+      flags = (flags | PTE_F) & ~PTE_W;
+      *pte = PA2PTE(pa) | flags;
     }
-    add_ref_count((void*)pa);
+
+    if(mappages(new, i, PGSIZE, pa, flags) != 0) {
+      uvmunmap(new, 0, i / PGSIZE, 1);
+      return -1;
+    }
+    // 增加内存的引用计数
+    add_ref_count((char*)pa);
   }
   return 0;
-
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
 }
 
 // mark a PTE invalid for user access.
@@ -352,27 +352,13 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-
-    if(va0 >= MAXVA)
-      return -1;
-
-    pte_t* pte = walk(pagetable,va0,0);
-
-    if(pte == 0  || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
-      return -1;
-
-    if((*pte & PTE_F) != 0 && (*pte & PTE_W) == 0){
-      if(cowfalut(pagetable , va0) < 0){
-        return -1;
-      }
+    pa0 = walkaddr(pagetable, va0);
+    if(cowpage(pagetable, va0)==0){
+      pa0 = (uint64)cowalloc(pagetable, va0);
     }
 
-    pa0 = PTE2PA(*pte);
-
-    // pa0 = walkaddr(pagetable, va0);
-    // if(pa0 == 0)
-    //   return -1;
-
+    if(pa0 == 0)
+      return -1;
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

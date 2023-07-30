@@ -67,11 +67,12 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 15){
-    if(cowfalut(p->pagetable, r_stval())<0){
+  } else if(r_scause() == 13 || r_scause() == 15){
+     uint64 fault_va = r_stval();  // 获取出错的虚拟地址
+    if(fault_va >= p->sz || cowpage(p->pagetable, fault_va) != 0 || cowalloc(p->pagetable, PGROUNDDOWN(fault_va)) == 0)
       p->killed = 1;
-    }
-  } else {
+  } 
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -222,43 +223,3 @@ devintr()
   }
 }
 
-
-int
-cowfalut(pagetable_t pagetable, uint64 va)
-{
-  if(va>=MAXVA)
-    return -1;
-  pte_t* pte =  walk(pagetable, va, 0);
-
-  if(pte == 0)
-    return -1;
-
-  if((*pte&PTE_U)==0||(*pte&PTE_V)==0||(*pte&PTE_F)==0)
-    return -1;
-  
-
-  uint64 pa = PTE2PA(*pte);
-  int rc = get_ref_count((void*)pa);
-  if(rc == 1){
-    *pte &= ~PTE_F;
-    *pte |= PTE_W;
-    return 0;
-  }
-
-  uint64 new_page = (uint64)kalloc();
-  if(!new_page)
-    return -1;
-  
-  memmove((void*)new_page,(void*)pa, PGSIZE);    // copy into a new physical page
-
-  kfree((void*)pa);   // free old page ref_count;
-
-  if(PGROUNDDOWN(va)==0){    // head of the physical page
-    *pte = PA2PTE(new_page)| PTE_V | PTE_R | PTE_U | PTE_X;     // code page, cannot set PTE_W
-  }
-  else{
-    *pte = PA2PTE(new_page)| PTE_V | PTE_R | PTE_U | PTE_X | PTE_W;
-  }
-
-  return 0;
-}
