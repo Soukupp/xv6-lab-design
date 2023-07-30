@@ -9,6 +9,8 @@
 #include "riscv.h"
 #include "defs.h"
 
+int ref_count[PHYSTOP/PGSIZE];
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -35,8 +37,10 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE){
+    ref_count[(uint64)p/PGSIZE]=1;
     kfree(p);
+  }
 }
 
 // Free the page of physical memory pointed at by v,
@@ -57,8 +61,36 @@ kfree(void *pa)
   r = (struct run*)pa;
 
   acquire(&kmem.lock);
+  int index = (uint64)pa / PGSIZE;
+  if(ref_count[index]<1)
+    panic("kfree rf");
+  ref_count[index]--;
+  
+  if(ref_count[index]>0){
+    release(&kmem.lock);
+    return;
+  }
   r->next = kmem.freelist;
   kmem.freelist = r;
+  release(&kmem.lock);
+}
+
+int
+get_ref_count(void* pa){
+  acquire(&kmem.lock);
+  int index = (uint64)pa / PGSIZE;
+  int tmp = ref_count[index];
+  release(&kmem.lock);
+  return tmp;
+}
+
+void
+add_ref_count(void* pa){
+  acquire(&kmem.lock);
+  int index = (uint64)pa / PGSIZE;
+  if((uint64)pa>=PHYSTOP||ref_count[index]<1)
+    panic("incre");
+  ref_count[index]++;
   release(&kmem.lock);
 }
 
@@ -72,8 +104,14 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
+    int index = (uint64)r/PGSIZE;
+    if(ref_count[index]!= 0){
+      panic("kalloc");
+    }
+    ref_count[index]=1;
+  }
   release(&kmem.lock);
 
   if(r)
