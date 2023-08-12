@@ -312,9 +312,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
 
-    // 仅对可写页面设置COW标记
     if(flags & PTE_W) {
-      // 禁用写并设置COW Fork标记
       flags = (flags | PTE_F) & ~PTE_W;
       *pte = PA2PTE(pa) | flags;
     }
@@ -353,6 +351,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
+    
     if(cowpage(pagetable, va0)==0){
       pa0 = (uint64)cowalloc(pagetable, va0);
     }

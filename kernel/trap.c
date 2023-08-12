@@ -68,7 +68,7 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if(r_scause() == 13 || r_scause() == 15){
-     uint64 fault_va = r_stval();  // 获取出错的虚拟地址
+     uint64 fault_va = r_stval();  
     if(fault_va >= p->sz || cowpage(p->pagetable, fault_va) != 0 || cowalloc(p->pagetable, PGROUNDDOWN(fault_va)) == 0)
       p->killed = 1;
   } 
