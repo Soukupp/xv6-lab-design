@@ -40,6 +40,7 @@ e1000_init(uint32 *xregs)
   __sync_synchronize();
 
   // [E1000 14.5] Transmit initialization
+  // 初始化输送环
   memset(tx_ring, 0, sizeof(tx_ring));
   for (i = 0; i < TX_RING_SIZE; i++) {
     tx_ring[i].status = E1000_TXD_STAT_DD;
@@ -52,6 +53,7 @@ e1000_init(uint32 *xregs)
   regs[E1000_TDH] = regs[E1000_TDT] = 0;
   
   // [E1000 14.4] Receive initialization
+  // 初始化接收环
   memset(rx_ring, 0, sizeof(rx_ring));
   for (i = 0; i < RX_RING_SIZE; i++) {
     rx_mbufs[i] = mbufalloc(0);
@@ -102,7 +104,31 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
-  
+  acquire(&e1000_lock);
+  // 获取下一个可用的index坐标
+  uint32 index = regs[E1000_TDT];
+  // 获取描述符
+  struct tx_desc *desc = &tx_ring[index];
+  // 说明缓冲区不足
+  if(!(desc->status&E1000_TXD_STAT_DD)){
+    release(&e1000_lock);
+    return -1;
+  }
+  // 如果该坐标的mbuf数组原先有内容，则释放
+  if(tx_mbufs[index]){
+    mbuffree(tx_mbufs[index]);
+    tx_mbufs[index]=0;
+  }
+  // 传送mbuf的头和长度
+  desc->addr = (uint64)m->head;
+  desc->length = m ->len;
+  desc->cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+
+  tx_mbufs[index] = m;
+  // 下表加一
+  regs[E1000_TDT] = (regs[E1000_TDT]+1)% TX_RING_SIZE;
+
+  release(&e1000_lock);
   return 0;
 }
 
@@ -115,6 +141,18 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+  while(1){
+    uint32 index = ((regs[E1000_RDT] + 1)% RX_RING_SIZE);
+    struct rx_desc *desc = &rx_ring[index];
+    if(!(desc->status & E1000_RXD_STAT_DD))
+        return;
+    rx_mbufs[index]->len = desc ->length;
+    net_rx(rx_mbufs[index]);
+    rx_mbufs[index] = mbufalloc(0);
+    desc->addr = (uint64)rx_mbufs[index]->head;
+    desc ->status = 0;
+    regs[E1000_RDT] = index;
+  }
 }
 
 void
