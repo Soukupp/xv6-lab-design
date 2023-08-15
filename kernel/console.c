@@ -75,7 +75,7 @@ consolewrite(int user_src, uint64 src, int n)
 // copy (up to) a whole input line to dst.
 // user_dist indicates whether dst is a user
 // or kernel address.
-//
+// 
 int
 consoleread(int user_dst, uint64 dst, int n)
 {
