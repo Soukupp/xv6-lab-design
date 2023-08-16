@@ -189,9 +189,6 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 
-
-
-
 ifeq ($(LAB),$(filter $(LAB), lock))
 UPROGS += \
 	$U/_stats
@@ -244,7 +241,8 @@ endif
 
 ifeq ($(LAB),fs)
 UPROGS += \
-	$U/_bigfile
+	$U/_bigfile\
+	$U/_symlinktest
 endif
 
 
