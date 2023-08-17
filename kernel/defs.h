@@ -1,6 +1,5 @@
 struct buf;
 struct context;
-struct file;
 struct inode;
 struct pipe;
 struct proc;
@@ -8,6 +7,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct file;
 
 // bio.c
 void            binit(void);
