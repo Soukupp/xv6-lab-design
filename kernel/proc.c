@@ -133,7 +133,7 @@ found:
     return 0;
   }
 
-  p->alarm_goingoff = 0;
+  p->alarm_ifgoing = 0;
   p->alarm_handler = 0; 
   p->alarm_interval = 0;
   p->alarm_ticks = 0;
@@ -178,7 +178,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
-  p->alarm_goingoff = 0;
+  p->alarm_ifgoing = 0;
   p->alarm_handler = 0; 
   p->alarm_interval = 0;
   p->alarm_ticks = 0;

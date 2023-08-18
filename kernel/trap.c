@@ -81,11 +81,11 @@ usertrap(void)
     if(p->alarm_interval != 0) { // 如果设定了时钟事件
       p->alarm_ticks--;         // 消耗ticks
       if(p->alarm_ticks <= 0) { // 如果已经到达或超过设定的 tick 数
-        if(!p->alarm_goingoff) { // 确保没有时钟正在运行,防止中断重入
+        if(!p->alarm_ifgoing) { // 确保没有时钟正在运行,防止中断重入
           p->alarm_ticks = p->alarm_interval;
           *p->alarm_trapframe = *p->trapframe;
           p->trapframe->epc = (uint64)p->alarm_handler;
-          p->alarm_goingoff = 1;
+          p->alarm_ifgoing = 1;
         }
       }
     }
@@ -241,6 +241,6 @@ int sigalarm(int ticks, void(*handler)()){
 int sigreturn(){
   struct proc *p = myproc();
   *p->trapframe = *p->alarm_trapframe;
-  p->alarm_goingoff = 0;
+  p->alarm_ifgoing = 0;
   return 0;
 }

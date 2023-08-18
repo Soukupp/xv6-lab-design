@@ -108,7 +108,7 @@ struct proc {
 
   int alarm_interval;                   // 时钟周期
   int alarm_ticks;                      // 距离下一次alarm剩余的tick数
-  int alarm_goingoff;                   // 是否有时钟在执行且未返回
+  int alarm_ifgoing;                   // 是否有时钟在执行且未返回
   void(*alarm_handler)();               // 时钟回调处理函数
   struct trapframe *alarm_trapframe;    // 用于中断处理恢复原程序正常运行
 
