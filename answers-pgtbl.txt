@@ -1,0 +1,5 @@
+page0: text and data
+page1: guard page
+page2: stack
+page3 to last page: heap, trapframe and trampoline
+程序在用户态运行时无法读/写page1，因为这是guard page，无法被用户访问。
